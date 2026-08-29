@@ -42,6 +42,11 @@ model Company {
   suppliers            Supplier[]
   purchaseOrders       PurchaseOrder[]
   shipments            Shipment[]
+  whatsAppConfig       WhatsAppConfig?
+  whatsAppMessages     WhatsAppMessageLog[]
+  whatsAppTemplates    WhatsAppTemplate[]
+  googleIntegration    GoogleIntegration?
+  auditLogs            AuditLog[]
 }
 
 model Branch {
@@ -89,6 +94,7 @@ model User {
   ordersCreated Order[]
   qcRecords     QCRecord[]
   payments      Payment[]
+  auditLogs     AuditLog[]
 
   @@unique([companyId, email])
   @@unique([companyId, phone])
@@ -268,6 +274,7 @@ model Order {
   invoices Invoice[]
   payments Payment[]
   shipments Shipment[]
+  whatsAppMessages WhatsAppMessageLog[]
 
   @@unique([companyId, orderNumber])
 }
@@ -431,6 +438,7 @@ model Invoice {
   updatedAt       DateTime  @updatedAt
 
   payments Payment[]
+  whatsAppMessages WhatsAppMessageLog[]
 
   @@unique([companyId, invoiceNumber])
 }
@@ -454,6 +462,8 @@ model Payment {
   recordedById    String?
   recordedBy      User?    @relation(fields: [recordedById], references: [id], onDelete: SetNull)
   createdAt       DateTime @default(now())
+
+  whatsAppMessages WhatsAppMessageLog[]
 }
 
 model Supplier {
@@ -531,5 +541,88 @@ model Shipment {
   notes            String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+}
+
+model WhatsAppConfig {
+  id                 String   @id @default(uuid())
+  companyId          String   @unique
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ownerWhatsApp      String?
+  phoneNumberId      String?
+  businessAccountId  String?
+  apiToken           String?
+  webhookSecret      String?
+  providerType       String   @default("FALLBACK_LINK") // CLOUD_API, ON_PREMISE, FALLBACK_LINK
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model WhatsAppMessageLog {
+  id                String    @id @default(uuid())
+  companyId         String
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  recipientPhone    String
+  recipientName     String?
+  messageType       String    // ORDER_CONFIRM, INVOICE, PAYMENT_RECEIPT, ORDER_READY, DELIVERY_REMINDER, DISPATCH, THANK_YOU, CUSTOM
+  templateName      String?
+  messageText       String
+  status            String    @default("SENT") // NOT_SENT, SENDING, SENT, DELIVERED, READ, FAILED
+  provider          String    @default("WHATSAPP_WEB_LINK") // WHATSAPP_BUSINESS_API, WHATSAPP_WEB_LINK, SHARE_FALLBACK
+  externalMessageId String?
+  failureReason     String?
+  orderId           String?
+  order             Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  invoiceId         String?
+  invoice           Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  paymentId         String?
+  payment           Payment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  customerId        String?
+  createdAt         DateTime  @default(now())
+}
+
+model WhatsAppTemplate {
+  id            String   @id @default(uuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  category      String   // ORDER_CONFIRM, INVOICE, PAYMENT_RECEIPT, ORDER_READY, DELIVERY_REMINDER, DISPATCH, THANK_YOU
+  bodyText      String
+  variablesJson String   @default("[]")
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model GoogleIntegration {
+  id              String    @id @default(uuid())
+  companyId       String    @unique
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  googleEmail     String?
+  accessToken     String?
+  refreshToken    String?
+  tokenExpiry     DateTime?
+  spreadsheetId   String?
+  spreadsheetUrl  String?
+  lastSyncAt      DateTime?
+  syncStatus      String?   // IDLE, SYNCING, SUCCESS, FAILED
+  syncDetailsJson String?
+  autoSyncEnabled Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      String   // EXCEL_IMPORT, EXCEL_EXPORT, GOOGLE_IMPORT, GOOGLE_EXPORT, GOOGLE_SYNC, WHATSAPP_SENT, INVOICE_SENT, PAYMENT_RECEIPT_SENT, TEMPLATE_DOWNLOAD
+  entityType  String   // PRODUCT, CUSTOMER, INVENTORY, ORDER, INVOICE, PAYMENT, TEMPLATE, SETTINGS
+  recordId    String?
+  status      String   // SUCCESS, FAILED, WARNING
+  detailsJson String?  // Stores counts, error details, filters, query info
+  ipAddress   String?
+  createdAt   DateTime @default(now())
 }
 

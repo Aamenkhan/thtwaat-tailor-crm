@@ -15,7 +15,11 @@ import {
   LogOut,
   ChevronRight,
   Shield,
-  Layers
+  Layers,
+  MessageSquare,
+  UploadCloud,
+  FileSpreadsheet,
+  RefreshCw
 } from 'lucide-react-native';
 
 export default function MoreMenuScreen() {
@@ -37,6 +41,35 @@ export default function MoreMenuScreen() {
   };
 
   const menuSections = [
+    {
+      title: 'Bulk Data & Cloud Integrations',
+      items: [
+        {
+          title: 'WhatsApp Message Center',
+          sub: 'Templates, customer bills, payment alerts & message logs',
+          icon: <MessageSquare size={20} color={Colors.success} />,
+          route: '/whatsapp'
+        },
+        {
+          title: 'Bulk Excel Import',
+          sub: 'Multi-step validation, error checking & bulk upload',
+          icon: <UploadCloud size={20} color={Colors.accent} />,
+          route: '/imports'
+        },
+        {
+          title: 'Excel Export Hub & Reports',
+          sub: 'Export 13 data models, executive summaries & blank templates',
+          icon: <FileSpreadsheet size={20} color={Colors.purple} />,
+          route: '/exports'
+        },
+        {
+          title: 'Google Sheets Cloud Sync',
+          sub: 'Live 2-way spreadsheet sync layer with conflict safety',
+          icon: <RefreshCw size={20} color={Colors.info} />,
+          route: '/integrations/google'
+        }
+      ]
+    },
     {
       title: 'Production & Factory Ops',
       items: [

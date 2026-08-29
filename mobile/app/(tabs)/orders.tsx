@@ -8,11 +8,12 @@ import {
   Modal,
   ScrollView,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  Linking
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { api } from '../../src/api/client';
+import { api, API_BASE_URL } from '../../src/api/client';
 import { Colors } from '../../src/constants/theme';
 import { Card, Badge, AppButton, AppInput } from '../../src/components/CommonUI';
 import {
@@ -24,7 +25,8 @@ import {
   Sparkles,
   X,
   User,
-  Scissors
+  Scissors,
+  Download
 } from 'lucide-react-native';
 
 export default function OrdersScreen() {
@@ -160,6 +162,28 @@ export default function OrdersScreen() {
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
           <Plus size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Quick Export Bar */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 10 }}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            paddingVertical: 7,
+            backgroundColor: '#F8FAFC',
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: Colors.border
+          }}
+          onPress={() => Linking.openURL(`${API_BASE_URL}/exports/orders`)}
+        >
+          <Download size={14} color={Colors.text} />
+          <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.text }}>Export Orders Excel (.xlsx)</Text>
         </TouchableOpacity>
       </View>
 

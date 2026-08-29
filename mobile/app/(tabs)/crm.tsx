@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { api } from '../../src/api/client';
+import { api, API_BASE_URL } from '../../src/api/client';
 import { Colors } from '../../src/constants/theme';
 import { Card, Badge, AppButton, AppInput } from '../../src/components/CommonUI';
 import {
@@ -26,7 +26,10 @@ import {
   X,
   Tag,
   Building,
-  ChevronRight
+  ChevronRight,
+  Download,
+  UploadCloud,
+  FileSpreadsheet
 } from 'lucide-react-native';
 
 export default function CRMScreen() {
@@ -127,6 +130,47 @@ export default function CRMScreen() {
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
           <Plus size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Quick Bulk Import / Export Bar */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 10 }}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            paddingVertical: 7,
+            backgroundColor: '#EFF6FF',
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: '#BFDBFE'
+          }}
+          onPress={() => router.push('/imports' as any)}
+        >
+          <UploadCloud size={14} color={Colors.accent} />
+          <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.accent }}>Import Excel</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            paddingVertical: 7,
+            backgroundColor: '#F8FAFC',
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: Colors.border
+          }}
+          onPress={() => Linking.openURL(`${API_BASE_URL}/exports/customers`)}
+        >
+          <Download size={14} color={Colors.text} />
+          <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.text }}>Export Excel</Text>
         </TouchableOpacity>
       </View>
 

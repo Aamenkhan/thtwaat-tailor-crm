@@ -8,7 +8,8 @@ import {
   ScrollView,
   Alert,
   Linking,
-  ActivityIndicator
+  ActivityIndicator,
+  Share
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, API_BASE_URL } from '../../src/api/client';
@@ -20,15 +21,20 @@ import {
   MessageCircle,
   Search,
   DollarSign,
-  Calendar
+  Calendar,
+  Share2,
+  Send,
+  User,
+  ShieldCheck
 } from 'lucide-react-native';
 
 export default function BillingScreen() {
   const queryClient = useQueryClient();
   const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [sendingId, setSendingId] = useState<string | null>(null);
 
   // Fetch Invoices
-  const { data: invoicesData, isLoading } = useQuery({
+  const { data: invoicesData, isLoading, refetch } = useQuery({
     queryKey: ['invoices', selectedStatus],
     queryFn: async () => {
       const params: any = {};
@@ -43,15 +49,44 @@ export default function BillingScreen() {
     Linking.openURL(pdfUrl);
   };
 
-  const handleSendWhatsApp = (inv: any) => {
-    let clean = inv.customerPhone.replace(/[^0-9]/g, '');
-    if (clean.length === 10) clean = '91' + clean;
+  const handleShareInvoice = async (invoice: any) => {
+    try {
+      const pdfUrl = `${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`;
+      await Share.share({
+        title: `Tax Invoice ${invoice.invoiceNumber}`,
+        message: `🧾 TAX INVOICE: ${invoice.invoiceNumber}\nCustomer: ${invoice.customerName}\nTotal Amount: ₹${invoice.totalAmount}\nAmount Paid: ₹${invoice.amountPaid}\nBalance Due: ₹${invoice.balanceDue}\n\nView/Download PDF: ${pdfUrl}`
+      });
+    } catch (err: any) {
+      Alert.alert('Share Error', err.message);
+    }
+  };
 
-    const text = encodeURIComponent(
-      `🧾 *TAX INVOICE - ${inv.invoiceNumber}*\nCustomer: ${inv.customerName}\nTotal Amount: ₹${inv.totalAmount}\nAmount Paid: ₹${inv.amountPaid}\n*Balance Due: ₹${inv.balanceDue}*\n\nView Bill: ${API_BASE_URL}/billing/invoices/${inv.id}/pdf\n\nThank you for choosing our boutique!`
-    );
+  // Send WhatsApp Invoice (Customer or Owner)
+  const handleSendWhatsAppInvoice = async (invoice: any, toType: 'CUSTOMER' | 'OWNER') => {
+    setSendingId(`${invoice.id}-${toType}`);
+    try {
+      const res = await api.post('/whatsapp/send-invoice', {
+        invoiceId: invoice.id,
+        toType
+      });
 
-    Linking.openURL(`https://wa.me/${clean}?text=${text}`);
+      const data = res.data.data;
+      if (data?.waLink && data?.provider !== 'WHATSAPP_BUSINESS_API') {
+        Linking.openURL(data.waLink);
+      }
+
+      Alert.alert(
+        'WhatsApp Sent',
+        toType === 'OWNER'
+          ? 'Invoice copy dispatched to Owner WhatsApp!'
+          : `Invoice successfully sent to customer ${invoice.customerName}!`
+      );
+      refetch();
+    } catch (err: any) {
+      Alert.alert('WhatsApp Error', err.response?.data?.error || err.message);
+    } finally {
+      setSendingId(null);
+    }
   };
 
   return (
@@ -109,22 +144,47 @@ export default function BillingScreen() {
                 </View>
               </View>
 
-              {/* Action Buttons */}
+              {/* Action Buttons Row 1: PDF & Share */}
               <View style={styles.actionsRow}>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: '#F1F5F9' }]}
                   onPress={() => handleDownloadPDF(item)}
                 >
-                  <Download size={15} color={Colors.text} />
-                  <Text style={[styles.actionBtnText, { color: Colors.text }]}>PDF Invoice</Text>
+                  <Download size={14} color={Colors.text} />
+                  <Text style={[styles.actionBtnText, { color: Colors.text }]}>PDF Bill</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: '#DCFCE7' }]}
-                  onPress={() => handleSendWhatsApp(item)}
+                  style={[styles.actionBtn, { backgroundColor: '#F1F5F9' }]}
+                  onPress={() => handleShareInvoice(item)}
                 >
-                  <MessageCircle size={15} color={Colors.success} />
-                  <Text style={[styles.actionBtnText, { color: Colors.success }]}>WhatsApp Bill</Text>
+                  <Share2 size={14} color={Colors.text} />
+                  <Text style={[styles.actionBtnText, { color: Colors.text }]}>Share</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Action Buttons Row 2: WhatsApp Customer & WhatsApp Me */}
+              <View style={[styles.actionsRow, { marginTop: 6 }]}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#DCFCE7' }]}
+                  onPress={() => handleSendWhatsAppInvoice(item, 'CUSTOMER')}
+                  disabled={sendingId === `${item.id}-CUSTOMER`}
+                >
+                  <MessageCircle size={14} color={Colors.success} />
+                  <Text style={[styles.actionBtnText, { color: Colors.success }]}>
+                    {sendingId === `${item.id}-CUSTOMER` ? 'Sending...' : 'WhatsApp Customer'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#EFF6FF' }]}
+                  onPress={() => handleSendWhatsAppInvoice(item, 'OWNER')}
+                  disabled={sendingId === `${item.id}-OWNER`}
+                >
+                  <ShieldCheck size={14} color={Colors.accent} />
+                  <Text style={[styles.actionBtnText, { color: Colors.accent }]}>
+                    {sendingId === `${item.id}-OWNER` ? 'Sending...' : 'WhatsApp Me'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </Card>
@@ -211,7 +271,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     padding: 10,
     borderRadius: 8,
-    marginBottom: 12
+    marginBottom: 10
   },
   amountLabel: {
     fontSize: 10,
@@ -245,7 +305,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 8
   },
   actionBtnText: {

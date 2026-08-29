@@ -22,6 +22,11 @@ import { dispatchRoutes } from './modules/dispatch/dispatch.routes';
 import { reportRoutes } from './modules/reports/reports.routes';
 import { searchRoutes } from './modules/search/search.routes';
 import { aiRoutes } from './modules/ai/ai.routes';
+import { importRoutes } from './modules/imports-exports/imports.routes';
+import { exportRoutes } from './modules/imports-exports/exports.routes';
+import { whatsappRoutes } from './modules/notifications/whatsapp.routes';
+import { googleRoutes } from './modules/integrations/google.routes';
+import { auditRoutes } from './modules/audit/audit.routes';
 import { generateWhatsAppMessage } from './modules/notifications/whatsapp.service';
 
 const app = express();
@@ -65,6 +70,11 @@ app.use('/api/dispatch', dispatchRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/imports', importRoutes);
+app.use('/api/exports', exportRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/google', googleRoutes);
+app.use('/api/audit', auditRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
