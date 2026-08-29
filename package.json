@@ -1,0 +1,16 @@
+{
+  "name": "thtwaat-tailor-crm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-Ready Tailor CRM + Garment Manufacturing Management SaaS",
+  "workspaces": [
+    "shared",
+    "backend",
+    "mobile"
+  ],
+  "scripts": {
+    "backend:dev": "npm --prefix backend run dev",
+    "backend:build": "npm --prefix backend run build",
+    "mobile:start": "npm --prefix mobile start"
+  }
+}

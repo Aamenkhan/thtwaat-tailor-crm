@@ -1,0 +1,535 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Company {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  logoUrl      String?
+  phone        String
+  email        String   @unique
+  address      String?
+  gstNumber    String?
+  currency     String   @default("INR")
+  businessType String   @default("HYBRID") // TAILOR_SHOP, GARMENT_FACTORY, HYBRID
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  branches             Branch[]
+  users                User[]
+  customers            Customer[]
+  measurementTemplates MeasurementTemplate[]
+  customerMeasurements CustomerMeasurement[]
+  productStyles        ProductStyle[]
+  bomItems             BOMItem[]
+  inventoryItems       InventoryItem[]
+  stockMovements       StockMovement[]
+  orders               Order[]
+  orderItems           OrderItem[]
+  jobCards             ProductionJobCard[]
+  productionLogs       ProductionLog[]
+  qcRecords            QCRecord[]
+  workers              Worker[]
+  pieceRateLogs        PieceRateLog[]
+  invoices             Invoice[]
+  payments             Payment[]
+  suppliers            Supplier[]
+  purchaseOrders       PurchaseOrder[]
+  shipments            Shipment[]
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  code      String
+  phone     String?
+  address   String?
+  isMain    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  orders         Order[]
+  jobCards       ProductionJobCard[]
+  inventoryItems InventoryItem[]
+  stockMovements StockMovement[]
+  workers        Worker[]
+  pieceRateLogs  PieceRateLog[]
+  invoices       Invoice[]
+  payments       Payment[]
+  purchaseOrders PurchaseOrder[]
+  shipments      Shipment[]
+
+  @@unique([companyId, code])
+}
+
+model User {
+  id           String   @id @default(uuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId     String?
+  branch       Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  name         String
+  email        String
+  phone        String
+  passwordHash String
+  role         String   @default("MANAGER") // OWNER, ADMIN, MANAGER, SALES, TAILOR, CUTTER, PRODUCTION_MANAGER, QC, STORE_MANAGER, ACCOUNTANT
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ordersCreated Order[]
+  qcRecords     QCRecord[]
+  payments      Payment[]
+
+  @@unique([companyId, email])
+  @@unique([companyId, phone])
+}
+
+model Customer {
+  id           String   @id @default(uuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  businessName String?
+  phone        String
+  whatsapp     String?
+  email        String?
+  address      String?
+  gstNumber    String?
+  customerType String   @default("INDIVIDUAL") // INDIVIDUAL, TAILOR_CUSTOMER, BOUTIQUE, BRAND, WHOLESALE
+  notes        String?
+  tags         String   @default("[]") // JSON string array
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  measurements CustomerMeasurement[]
+  orders       Order[]
+  payments     Payment[]
+}
+
+model MeasurementTemplate {
+  id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String   // e.g. "Men's Shirt", "Kurti", "Trouser"
+  gender      String   @default("MEN") // MEN, WOMEN, KIDS, UNISEX
+  category    String   // Tops, Bottoms, Suits, Ethnic
+  fieldsJson  String   // JSON string of field definitions: [{"key": "chest", "label": "Chest", "unit": "inch"}]
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customerMeasurements CustomerMeasurement[]
+}
+
+model CustomerMeasurement {
+  id                  String               @id @default(uuid())
+  companyId           String
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId          String
+  customer            Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  templateId          String?
+  template            MeasurementTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  title               String               // e.g. "Formal Shirt Measurement"
+  gender              String               @default("MEN")
+  unit                String               @default("INCH") // INCH, CM
+  valuesJson          String               // JSON string of key-value pairs: {"chest": 40, "waist": 34}
+  specialInstructions String?
+  referenceImagesJson String               @default("[]") // JSON array of image URLs
+  version             Int                  @default(1)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  orderItems OrderItem[]
+}
+
+model ProductStyle {
+  id                  String   @id @default(uuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  styleNumber         String
+  name                String
+  category            String
+  description         String?
+  photoUrl            String?
+  fabricDetails       String?
+  brand               String?
+  gender              String   @default("MEN")
+  sizeRangeJson       String   @default("[]") // e.g. ["S", "M", "L", "XL"]
+  colorRangeJson      String   @default("[]") // e.g. ["White", "Navy Blue", "Black"]
+  sellingPrice        Float    @default(0)
+  estimatedCost       Float    @default(0)
+  standardProdMinutes Int      @default(60)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  bomItems   BOMItem[]
+  orderItems OrderItem[]
+
+  @@unique([companyId, styleNumber])
+}
+
+model BOMItem {
+  id                String        @id @default(uuid())
+  companyId         String
+  company           Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productStyleId    String
+  productStyle      ProductStyle  @relation(fields: [productStyleId], references: [id], onDelete: Cascade)
+  inventoryItemId   String?
+  inventoryItem     InventoryItem? @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
+  materialName      String
+  quantity          Float
+  unit              String        // meter, pcs, meters, grams
+  wastagePercentage Float         @default(0)
+  costPerUnit       Float         @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+model InventoryItem {
+  id            String   @id @default(uuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId      String?
+  branch        Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  name          String
+  sku           String?
+  category      String   // FABRIC, BUTTON, ZIPPER, THREAD, LINING, LABEL, PACKING_MATERIAL, ACCESSORY
+  unit          String   // meter, pcs, roll, box
+  currentStock  Float    @default(0)
+  minStockAlert Float    @default(10)
+  unitCost      Float    @default(0)
+  supplierName  String?
+  location      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  bomItems       BOMItem[]
+  stockMovements StockMovement[]
+}
+
+model StockMovement {
+  id              String        @id @default(uuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  movementType    String        // PURCHASE_IN, PRODUCTION_CONSUMPTION, DAMAGE_WASTAGE, RETURN, ADJUSTMENT
+  quantity        Float
+  unitCost        Float         @default(0)
+  referenceType   String?       // ORDER, JOB_CARD, PO
+  referenceId     String?
+  notes           String?
+  performedById   String?
+  createdAt       DateTime      @default(now())
+}
+
+model Order {
+  id            String   @id @default(uuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId      String
+  branch        Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderNumber   String
+  orderType     String   @default("BESPOKE_TAILORING") // BESPOKE_TAILORING, BULK_MANUFACTURING, ALTERATION, SAMPLE
+  status        String   @default("CONFIRMED")
+  priority      String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  trialDate     DateTime?
+  deliveryDate  DateTime
+  totalAmount   Float    @default(0)
+  discount      Float    @default(0)
+  taxRate       Float    @default(0)
+  taxAmount     Float    @default(0)
+  finalAmount   Float    @default(0)
+  advancePaid   Float    @default(0)
+  balanceDue    Float    @default(0)
+  paymentStatus String   @default("PENDING") // PENDING, PARTIAL, PAID
+  notes         String?
+  createdById   String?
+  createdBy     User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items    OrderItem[]
+  jobCards ProductionJobCard[]
+  invoices Invoice[]
+  payments Payment[]
+  shipments Shipment[]
+
+  @@unique([companyId, orderNumber])
+}
+
+model OrderItem {
+  id                       String               @id @default(uuid())
+  companyId                String
+  company                  Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  orderId                  String
+  order                    Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productStyleId           String?
+  productStyle             ProductStyle?        @relation(fields: [productStyleId], references: [id], onDelete: SetNull)
+  measurementId            String?
+  measurement              CustomerMeasurement? @relation(fields: [measurementId], references: [id], onDelete: SetNull)
+  customItemName           String
+  itemType                 String               @default("BESPOKE_TAILORING")
+  gender                   String               @default("MEN")
+  quantity                 Int                  @default(1)
+  unitPrice                Float                @default(0)
+  totalAmount              Float                @default(0)
+  fabricProvidedByCustomer Boolean              @default(false)
+  fabricDetails            String?
+  color                    String?
+  size                     String?
+  designNotes              String?
+  referenceImagesJson      String               @default("[]")
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+
+  jobCards ProductionJobCard[]
+}
+
+model ProductionJobCard {
+  id                String     @id @default(uuid())
+  companyId         String
+  company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId          String
+  branch            Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orderId           String
+  order             Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItemId       String
+  orderItem         OrderItem  @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  jobCardNumber     String
+  currentStage      String     @default("CUTTING") // CUTTING, STITCHING, FINISHING, QC_INSPECTION, IRONING_PACKING, COMPLETED
+  qcStatus          String     @default("PENDING") // PENDING, PASSED, REWORK_REQUIRED, REJECTED
+  qrCode            String
+  priority          String     @default("NORMAL")
+  assignedWorkerId  String?
+  assignedWorker    Worker?    @relation(fields: [assignedWorkerId], references: [id], onDelete: SetNull)
+  plannedQuantity   Int        @default(1)
+  completedQuantity Int        @default(0)
+  rejectedQuantity  Int        @default(0)
+  startedAt         DateTime   @default(now())
+  completedAt       DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  productionLogs ProductionLog[]
+  qcRecords      QCRecord[]
+  pieceRateLogs  PieceRateLog[]
+
+  @@unique([companyId, jobCardNumber])
+}
+
+model ProductionLog {
+  id        String            @id @default(uuid())
+  companyId String
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  jobCardId String
+  jobCard   ProductionJobCard @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  stage     String
+  workerId  String?
+  worker    Worker?           @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  quantity  Int               @default(1)
+  notes     String?
+  createdAt DateTime          @default(now())
+}
+
+model QCRecord {
+  id                 String            @id @default(uuid())
+  companyId          String
+  company            Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  jobCardId          String
+  jobCard            ProductionJobCard @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  inspectorId        String?
+  inspector          User?             @relation(fields: [inspectorId], references: [id], onDelete: SetNull)
+  status             String            // PASSED, REWORK_REQUIRED, REJECTED
+  defectType         String?           // STITCHING_DEFECT, MEASUREMENT_MISMATCH, etc.
+  defectNotes        String?
+  defectPhotosJson   String            @default("[]")
+  reworkAssignedToId String?
+  createdAt          DateTime          @default(now())
+}
+
+model Worker {
+  id               String   @id @default(uuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId         String?
+  branch           Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  name             String
+  phone            String
+  email            String?
+  role             String   @default("TAILOR") // TAILOR, CUTTER, MASTER, FINISHER, QC_OPERATOR
+  wageType         String   @default("PIECE_RATE") // PIECE_RATE, MONTHLY_SALARY, DAILY_WAGE
+  defaultPieceRate Float    @default(0)
+  monthlySalary    Float    @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  jobCards       ProductionJobCard[]
+  productionLogs ProductionLog[]
+  pieceRateLogs  PieceRateLog[]
+}
+
+model PieceRateLog {
+  id           String             @id @default(uuid())
+  companyId    String
+  company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId     String?
+  branch       Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  workerId     String
+  worker       Worker             @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  jobCardId    String?
+  jobCard      ProductionJobCard? @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
+  stage        String             // CUTTING, STITCHING, FINISHING
+  quantity     Int                @default(1)
+  ratePerPiece Float              @default(0)
+  totalPayout  Float              @default(0)
+  isPaid       Boolean            @default(false)
+  notes        String?
+  createdAt    DateTime           @default(now())
+}
+
+model Invoice {
+  id              String    @id @default(uuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId        String
+  branch          Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  invoiceNumber   String
+  customerName    String
+  customerPhone   String
+  customerAddress String?
+  customerGst     String?
+  subtotal        Float     @default(0)
+  discount        Float     @default(0)
+  taxRate         Float     @default(0)
+  taxAmount       Float     @default(0)
+  totalAmount     Float     @default(0)
+  amountPaid      Float     @default(0)
+  balanceDue      Float     @default(0)
+  invoiceDate     DateTime  @default(now())
+  dueDate         DateTime?
+  pdfUrl          String?
+  status          String    @default("PENDING") // PENDING, PARTIAL, PAID
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  payments Payment[]
+
+  @@unique([companyId, invoiceNumber])
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId        String
+  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orderId         String?
+  order           Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  invoiceId       String?
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  amount          Float
+  paymentMethod   String   @default("CASH") // CASH, UPI, CREDIT_CARD, DEBIT_CARD, BANK_TRANSFER, RAZORPAY
+  referenceNumber String?
+  notes           String?
+  recordedById    String?
+  recordedBy      User?    @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+}
+
+model Supplier {
+  id           String   @id @default(uuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  companyName  String?
+  phone        String
+  email        String?
+  address      String?
+  gstNumber    String?
+  paymentTerms String?  @default("Net 30")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+}
+
+model PurchaseOrder {
+  id            String   @id @default(uuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId      String
+  branch        Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  supplierId    String
+  supplier      Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  poNumber      String
+  status        String   @default("ORDERED") // DRAFT, ORDERED, RECEIVED, CANCELLED
+  totalAmount   Float    @default(0)
+  taxAmount     Float    @default(0)
+  finalAmount   Float    @default(0)
+  paymentStatus String   @default("PENDING") // PENDING, PARTIAL, PAID
+  orderDate     DateTime @default(now())
+  expectedDate  DateTime?
+  receivedDate  DateTime?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items PurchaseOrderItem[]
+
+  @@unique([companyId, poNumber])
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  companyId       String
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  materialName    String
+  quantity        Float
+  unit            String
+  unitCost        Float         @default(0)
+  totalAmount     Float         @default(0)
+  createdAt       DateTime      @default(now())
+}
+
+model Shipment {
+  id               String    @id @default(uuid())
+  companyId        String
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId         String
+  branch           Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orderId          String
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  trackingNumber   String?
+  courierName      String?   // e.g. BlueDart, Delhivery, Porter, Self-Delivery
+  status           String    @default("PENDING") // PENDING, PACKED, DISPATCHED, IN_TRANSIT, DELIVERED, CANCELLED
+  packageWeightKg  Float?
+  boxDimensions    String?   // e.g. "30x20x15 cm"
+  dispatchDate     DateTime?
+  expectedDelivery DateTime?
+  deliveredDate    DateTime?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
