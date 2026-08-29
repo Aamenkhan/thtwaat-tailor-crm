@@ -28,6 +28,7 @@ import { whatsappRoutes } from './modules/notifications/whatsapp.routes';
 import { googleRoutes } from './modules/integrations/google.routes';
 import { auditRoutes } from './modules/audit/audit.routes';
 import productionFactoryRoutes from './modules/production-factory/production-factory.routes';
+import accountingRoutes from './modules/accounting/accounting.routes';
 import { generateWhatsAppMessage } from './modules/notifications/whatsapp.service';
 
 const app = express();
@@ -77,6 +78,7 @@ app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/google', googleRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/factory', productionFactoryRoutes);
+app.use('/api/accounting', accountingRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

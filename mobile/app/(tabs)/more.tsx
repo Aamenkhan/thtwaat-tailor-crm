@@ -22,7 +22,10 @@ import {
   RefreshCw,
   Factory,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  CreditCard,
+  Percent,
+  FileText
 } from 'lucide-react-native';
 
 export default function MoreMenuScreen() {
@@ -44,6 +47,41 @@ export default function MoreMenuScreen() {
   };
 
   const menuSections = [
+    {
+      title: 'Financials, GST & Accounting',
+      items: [
+        {
+          title: 'Finance Command Center',
+          sub: 'Live net profit KPI, revenue vs COGS vs expenses gauges',
+          icon: <DollarSign size={20} color={Colors.primary} />,
+          route: '/accounting'
+        },
+        {
+          title: 'Profit & Loss (P&L) Statement',
+          sub: 'Gross revenue, COGS, factory OPEX, EBITDA & net profit margin',
+          icon: <TrendingUp size={20} color={Colors.success} />,
+          route: '/accounting/pnl'
+        },
+        {
+          title: 'Expense Management',
+          sub: 'Rent, power, repairs, trims, packaging & receipt photo log',
+          icon: <CreditCard size={20} color={Colors.warning} />,
+          route: '/accounting/expenses'
+        },
+        {
+          title: 'GST Compliance & Tax Filing',
+          sub: 'CGST/SGST/IGST split, GSTR-1 outward turnover & GSTR-3B ITC credit',
+          icon: <Percent size={20} color={Colors.accent} />,
+          route: '/accounting/gst'
+        },
+        {
+          title: 'Party Ledgers & Statements',
+          sub: 'Customer statement of account, vendor payables & running balances',
+          icon: <FileText size={20} color={Colors.purple} />,
+          route: '/accounting/ledger'
+        }
+      ]
+    },
     {
       title: 'Garment Factory Production ERP',
       items: [
