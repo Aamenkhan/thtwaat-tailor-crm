@@ -39,7 +39,16 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
 
-// Health Check
+// Root & Health Checks
+app.get('/', (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    service: 'Tailor & Garment Manufacturing CRM Backend',
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
@@ -84,8 +93,11 @@ app.use('/api/accounting', accountingRoutes);
 app.use(errorHandler);
 
 const PORT = ENV.PORT;
-app.listen(PORT, () => {
-  console.log(`🚀 Tailor CRM Backend running on http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Tailor CRM Backend running on http://localhost:${PORT}`);
+  });
+}
 
 export default app;
+export { app };
