@@ -19,7 +19,10 @@ import {
   MessageSquare,
   UploadCloud,
   FileSpreadsheet,
-  RefreshCw
+  RefreshCw,
+  Factory,
+  TrendingUp,
+  DollarSign
 } from 'lucide-react-native';
 
 export default function MoreMenuScreen() {
@@ -41,6 +44,53 @@ export default function MoreMenuScreen() {
   };
 
   const menuSections = [
+    {
+      title: 'Garment Factory Production ERP',
+      items: [
+        {
+          title: 'Factory Command Center',
+          sub: 'Live efficiency %, active lines, daily target counters & floor KPIs',
+          icon: <Factory size={20} color={Colors.primary} />,
+          route: '/production-factory'
+        },
+        {
+          title: 'Production Planning & BOM',
+          sub: 'Size-color matrix, auto BOM material calculation & stock check',
+          icon: <Layers size={20} color={Colors.accent} />,
+          route: '/production-factory/planning'
+        },
+        {
+          title: 'Cutting & Fabric Roll Tracker',
+          sub: 'Marker length, lay plies, GSM roll tracker & Bundle QR generator',
+          icon: <Scissors size={20} color={Colors.purple} />,
+          route: '/production-factory/cutting'
+        },
+        {
+          title: 'Stitching Lines & Floor Logs',
+          sub: 'Real-time line efficiency %, artisan assignment & daily entry',
+          icon: <TrendingUp size={20} color={Colors.info} />,
+          route: '/production-factory/lines'
+        },
+        {
+          title: 'Advanced QC & Rework Station',
+          sub: 'Defect logging, severity, photos, pass/rework/scrap workflows',
+          icon: <CheckCircle2 size={20} color={Colors.success} />,
+          route: '/production-factory/qc-rework'
+        },
+        {
+          title: 'Manufacturing Costing & Payroll',
+          sub: 'BOM vs actual material variance, costing sheet & artisan wages',
+          icon: <DollarSign size={20} color={Colors.warning} />,
+          route: '/production-factory/costing'
+        },
+        {
+          title: 'Finished Goods Warehouse',
+          sub: 'Packed warehouse inventory, batch allocation & delivery',
+          icon: <Package size={20} color={Colors.text} />,
+          route: '/production-factory/finished-goods'
+        }
+      ]
+    },
     {
       title: 'Bulk Data & Cloud Integrations',
       items: [

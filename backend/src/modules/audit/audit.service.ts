@@ -3,33 +3,10 @@ import { prisma } from '../../config/db';
 export interface AuditEventParams {
   companyId: string;
   userId?: string | null;
-  action:
-    | 'EXCEL_IMPORT'
-    | 'EXCEL_EXPORT'
-    | 'GOOGLE_IMPORT'
-    | 'GOOGLE_EXPORT'
-    | 'GOOGLE_SYNC'
-    | 'WHATSAPP_SENT'
-    | 'INVOICE_SENT'
-    | 'PAYMENT_RECEIPT_SENT'
-    | 'TEMPLATE_DOWNLOAD'
-    | 'SETTINGS_UPDATE';
-  entityType:
-    | 'PRODUCT'
-    | 'CUSTOMER'
-    | 'INVENTORY'
-    | 'ORDER'
-    | 'INVOICE'
-    | 'PAYMENT'
-    | 'TEMPLATE'
-    | 'SETTINGS'
-    | 'WORKER'
-    | 'SUPPLIER'
-    | 'PRODUCTION'
-    | 'PURCHASE'
-    | 'REPORT';
+  action: string;
+  entityType: string;
   recordId?: string | null;
-  status: 'SUCCESS' | 'FAILED' | 'WARNING';
+  status?: 'SUCCESS' | 'FAILED' | 'WARNING';
   details?: Record<string, any>;
   ipAddress?: string;
 }
@@ -44,38 +21,42 @@ export class AuditService {
           action: params.action,
           entityType: params.entityType,
           recordId: params.recordId || undefined,
-          status: params.status,
+          status: params.status || 'SUCCESS',
           detailsJson: params.details ? JSON.stringify(params.details) : undefined,
-          ipAddress: params.ipAddress || undefined
+          ipAddress: params.ipAddress
         }
       });
     } catch (err) {
-      console.error('[AuditService] Failed to record audit event:', err);
+      console.error('AuditLog creation failed:', err);
       return null;
     }
   }
 
-  static async getLogs(companyId: string, options: { action?: string; entityType?: string; limit?: number; offset?: number } = {}) {
-    const { action, entityType, limit = 50, offset = 0 } = options;
+  static async getLogs(companyId: string, filters: { action?: string; entityType?: string; status?: string; limit?: number; offset?: number } = {}) {
     const where: any = { companyId };
-    if (action) where.action = action;
-    if (entityType) where.entityType = entityType;
+    if (filters.action && filters.action !== 'ALL') where.action = filters.action;
+    if (filters.entityType && filters.entityType !== 'ALL') where.entityType = filters.entityType;
+    if (filters.status && filters.status !== 'ALL') where.status = filters.status;
 
-    const [logs, total] = await Promise.all([
+    const [total, logs] = await Promise.all([
+      prisma.auditLog.count({ where }),
       prisma.auditLog.findMany({
         where,
         include: {
-          user: {
-            select: { id: true, name: true, email: true, role: true }
-          }
+          user: { select: { id: true, name: true, email: true, role: true } }
         },
         orderBy: { createdAt: 'desc' },
-        take: limit,
-        skip: offset
-      }),
-      prisma.auditLog.count({ where })
+        take: filters.limit || 50,
+        skip: filters.offset || 0
+      })
     ]);
 
-    return { logs, total, limit, offset };
+    return {
+      total,
+      logs: logs.map((l) => ({
+        ...l,
+        details: l.detailsJson ? JSON.parse(l.detailsJson) : {}
+      }))
+    };
   }
 }

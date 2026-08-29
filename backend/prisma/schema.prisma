@@ -47,6 +47,17 @@ model Company {
   whatsAppTemplates    WhatsAppTemplate[]
   googleIntegration    GoogleIntegration?
   auditLogs            AuditLog[]
+  productionOrders     ProductionOrder[]
+  materialRequirements MaterialRequirement[]
+  purchaseRequirements PurchaseRequirement[]
+  fabricRolls          FabricRoll[]
+  cuttingPlans         CuttingPlan[]
+  bundles              Bundle[]
+  productionLines      ProductionLine[]
+  dailyProductions     DailyProduction[]
+  reworkEntries        ReworkEntry[]
+  finishedGoods        FinishedGoods[]
+  manufacturingCostings ManufacturingCosting[]
 }
 
 model Branch {
@@ -72,6 +83,9 @@ model Branch {
   payments       Payment[]
   purchaseOrders PurchaseOrder[]
   shipments      Shipment[]
+  productionOrders ProductionOrder[]
+  productionLines  ProductionLine[]
+  finishedGoods    FinishedGoods[]
 
   @@unique([companyId, code])
 }
@@ -91,10 +105,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  ordersCreated Order[]
-  qcRecords     QCRecord[]
-  payments      Payment[]
-  auditLogs     AuditLog[]
+  ordersCreated           Order[]
+  qcRecords               QCRecord[]
+  payments                Payment[]
+  auditLogs               AuditLog[]
+  productionOrdersManaged ProductionOrder[]
 
   @@unique([companyId, email])
   @@unique([companyId, phone])
@@ -120,6 +135,7 @@ model Customer {
   measurements CustomerMeasurement[]
   orders       Order[]
   payments     Payment[]
+  productionOrders ProductionOrder[]
 }
 
 model MeasurementTemplate {
@@ -180,6 +196,8 @@ model ProductStyle {
 
   bomItems   BOMItem[]
   orderItems OrderItem[]
+  productionOrders ProductionOrder[]
+  manufacturingCostings ManufacturingCosting[]
 
   @@unique([companyId, styleNumber])
 }
@@ -219,8 +237,10 @@ model InventoryItem {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  bomItems       BOMItem[]
-  stockMovements StockMovement[]
+  bomItems             BOMItem[]
+  stockMovements       StockMovement[]
+  materialRequirements MaterialRequirement[]
+  purchaseRequirements PurchaseRequirement[]
 }
 
 model StockMovement {
@@ -275,6 +295,7 @@ model Order {
   payments Payment[]
   shipments Shipment[]
   whatsAppMessages WhatsAppMessageLog[]
+  productionOrders ProductionOrder[]
 
   @@unique([companyId, orderNumber])
 }
@@ -354,19 +375,24 @@ model ProductionLog {
 }
 
 model QCRecord {
-  id                 String            @id @default(uuid())
+  id                 String             @id @default(uuid())
   companyId          String
-  company            Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  jobCardId          String
-  jobCard            ProductionJobCard @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  jobCardId          String?
+  jobCard            ProductionJobCard? @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
+  stage              String             @default("STITCHING")
+  inspectedQuantity  Int                @default(1)
+  passedQuantity     Int                @default(1)
+  reworkQuantity     Int                @default(0)
+  rejectedQuantity   Int                @default(0)
   inspectorId        String?
-  inspector          User?             @relation(fields: [inspectorId], references: [id], onDelete: SetNull)
-  status             String            // PASSED, REWORK_REQUIRED, REJECTED
-  defectType         String?           // STITCHING_DEFECT, MEASUREMENT_MISMATCH, etc.
+  inspector          User?              @relation(fields: [inspectorId], references: [id], onDelete: SetNull)
+  status             String             // PASSED, REWORK_REQUIRED, REJECTED
+  defectType         String?            // STITCHING_DEFECT, MEASUREMENT_MISMATCH, etc.
   defectNotes        String?
-  defectPhotosJson   String            @default("[]")
+  defectPhotosJson   String             @default("[]")
   reworkAssignedToId String?
-  createdAt          DateTime          @default(now())
+  createdAt          DateTime           @default(now())
 }
 
 model Worker {
@@ -386,9 +412,13 @@ model Worker {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  jobCards       ProductionJobCard[]
-  productionLogs ProductionLog[]
-  pieceRateLogs  PieceRateLog[]
+  jobCards                   ProductionJobCard[]
+  productionLogs             ProductionLog[]
+  pieceRateLogs              PieceRateLog[]
+  cuttingPlans               CuttingPlan[]
+  productionLinesSupervised  ProductionLine[]
+  dailyProductions           DailyProduction[]
+  reworkAssigned             ReworkEntry[]
 }
 
 model PieceRateLog {
@@ -505,6 +535,7 @@ model PurchaseOrder {
   updatedAt     DateTime @updatedAt
 
   items PurchaseOrderItem[]
+  purchaseRequirements PurchaseRequirement[]
 
   @@unique([companyId, poNumber])
 }
@@ -624,5 +655,287 @@ model AuditLog {
   detailsJson String?  // Stores counts, error details, filters, query info
   ipAddress   String?
   createdAt   DateTime @default(now())
+}
+
+model ProductionOrder {
+  id                    String   @id @default(uuid())
+  companyId             String
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId              String?
+  branch                Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  orderId               String?
+  order                 Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  productStyleId        String?
+  productStyle          ProductStyle? @relation(fields: [productStyleId], references: [id], onDelete: SetNull)
+  buyerId               String?
+  buyer                 Customer? @relation(fields: [buyerId], references: [id], onDelete: SetNull)
+  productionOrderNumber String
+  styleNumber           String
+  productName           String
+  totalQuantity         Int
+  sizeBreakdownJson     String   @default("{}") // e.g. {"S": 100, "M": 200, "L": 300, "XL": 250, "XXL": 100}
+  colorBreakdownJson    String   @default("{}") // e.g. {"White": 950, "Blue": 800, "Black": 680}
+  matrixJson            String   @default("{}") // Size x Color nested matrix
+  plannedStartDate      DateTime @default(now())
+  plannedCompletionDate DateTime
+  actualStartDate       DateTime?
+  actualCompletionDate  DateTime?
+  priority              String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  productionUnit        String?  @default("Main Production Unit")
+  assignedManagerId     String?
+  assignedManager       User?    @relation(fields: [assignedManagerId], references: [id], onDelete: SetNull)
+  status                String   @default("PLANNED") // PLANNED, MATERIAL_PENDING, READY_FOR_CUTTING, CUTTING, STITCHING, FINISHING, QC, PACKING, COMPLETED, CANCELLED
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  materialRequirements MaterialRequirement[]
+  purchaseRequirements PurchaseRequirement[]
+  cuttingPlans         CuttingPlan[]
+  bundles              Bundle[]
+  dailyProductions     DailyProduction[]
+  reworkEntries        ReworkEntry[]
+  finishedGoods        FinishedGoods[]
+  manufacturingCosting ManufacturingCosting?
+
+  @@unique([companyId, productionOrderNumber])
+}
+
+model MaterialRequirement {
+  id                String          @id @default(uuid())
+  companyId         String
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  inventoryItemId   String?
+  inventoryItem     InventoryItem?  @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
+  materialName      String
+  category          String          // FABRIC, BUTTON, ZIPPER, THREAD, LINING, LABEL, PACKING_MATERIAL, ACCESSORY
+  unit              String          // meter, pcs, kg, roll
+  bomPerGarment     Float
+  grossRequired     Float
+  wastagePercentage Float           @default(5.0)
+  currentStock      Float           @default(0)
+  availableStock    Float           @default(0)
+  shortageQuantity  Float           @default(0)
+  purchaseRequired  Boolean         @default(false)
+  status            String          @default("AVAILABLE") // AVAILABLE, PARTIALLY_AVAILABLE, OUT_OF_STOCK
+  createdAt         DateTime        @default(now())
+}
+
+model PurchaseRequirement {
+  id                 String           @id @default(uuid())
+  companyId          String
+  company            Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productionOrderId  String?
+  productionOrder    ProductionOrder? @relation(fields: [productionOrderId], references: [id], onDelete: SetNull)
+  inventoryItemId    String?
+  inventoryItem      InventoryItem?   @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
+  materialName       String
+  requiredQuantity   Float
+  unit               String
+  estimatedUnitCost  Float            @default(0)
+  estimatedTotalCost Float            @default(0)
+  status             String           @default("PENDING") // PENDING, PO_CREATED, RECEIVED, CANCELLED
+  purchaseOrderId    String?
+  purchaseOrder      PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model FabricRoll {
+  id                  String        @id @default(uuid())
+  companyId           String
+  company             Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  rollNumber          String        // e.g. ROLL-2026-081
+  fabricType          String        // Cotton, Wool, Linen, Silk, Poly-blend
+  color               String
+  widthInches         Float         @default(58)
+  gsm                 Float         @default(180)
+  initialLengthMeters Float
+  currentLengthMeters Float
+  unitCost            Float         @default(0)
+  supplierName        String?
+  batchNumber         String?
+  warehouseLocation   String?
+  status              String        @default("AVAILABLE") // AVAILABLE, IN_USE, CONSUMED, DAMAGED
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  cuttingPlans CuttingPlan[]
+
+  @@unique([companyId, rollNumber])
+}
+
+model CuttingPlan {
+  id                 String          @id @default(uuid())
+  companyId          String
+  company            Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productionOrderId  String
+  productionOrder    ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  styleNumber        String
+  fabricName         String
+  fabricRollId       String?
+  fabricRoll         FabricRoll?     @relation(fields: [fabricRollId], references: [id], onDelete: SetNull)
+  rollLotNumber      String?
+  markerLengthMeters Float           @default(0)
+  layQuantityPlies   Int             @default(1)
+  plannedCutQuantity Int
+  actualCutQuantity  Int             @default(0)
+  wastageMeters      Float           @default(0)
+  cutterId           String?
+  cutter             Worker?         @relation(fields: [cutterId], references: [id], onDelete: SetNull)
+  cutDate            DateTime        @default(now())
+  status             String          @default("IN_PROGRESS") // PLANNED, IN_PROGRESS, COMPLETED
+  notes              String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  bundles Bundle[]
+}
+
+model Bundle {
+  id                 String          @id @default(uuid())
+  companyId          String
+  company            Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bundleNumber       String          // e.g. BND-1001
+  productionOrderId  String
+  productionOrder    ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  cuttingPlanId      String?
+  cuttingPlan        CuttingPlan?    @relation(fields: [cuttingPlanId], references: [id], onDelete: SetNull)
+  styleNumber        String
+  size               String
+  color              String
+  quantity           Int
+  cuttingReference   String?
+  assignedLineId     String?
+  assignedLine       ProductionLine? @relation(fields: [assignedLineId], references: [id], onDelete: SetNull)
+  currentStage       String          @default("CUTTING") // CUTTING, STITCHING, FINISHING, QC, PACKING, COMPLETED
+  qrCode             String
+  barcode            String
+  status             String          @default("IN_TRANSIT") // IN_TRANSIT, IN_STITCHING, STITCHED, QC_PASSED, PACKED
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@unique([companyId, bundleNumber])
+}
+
+model ProductionLine {
+  id                  String   @id @default(uuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId            String?
+  branch              Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  name                String   // e.g. "Line 1 - Formal Shirts", "Line 2 - Suits"
+  code                String
+  supervisorId        String?
+  supervisor          Worker?  @relation(fields: [supervisorId], references: [id], onDelete: SetNull)
+  targetHourlyOutput  Int      @default(20)
+  targetDailyOutput   Int      @default(160)
+  activeWorkerCount   Int      @default(10)
+  status              String   @default("ACTIVE") // ACTIVE, IDLE, MAINTENANCE
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  bundles          Bundle[]
+  dailyProductions DailyProduction[]
+
+  @@unique([companyId, code])
+}
+
+model DailyProduction {
+  id                   String          @id @default(uuid())
+  companyId            String
+  company              Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productionOrderId    String
+  productionOrder      ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  productionLineId     String?
+  productionLine       ProductionLine? @relation(fields: [productionLineId], references: [id], onDelete: SetNull)
+  workerId             String?
+  worker               Worker?         @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  stage                String          // CUTTING, STITCHING, FINISHING, QC, PACKING
+  entryDate            DateTime        @default(now())
+  targetQuantity       Int             @default(0)
+  completedQuantity    Int             @default(0)
+  reworkQuantity       Int             @default(0)
+  rejectedQuantity     Int             @default(0)
+  efficiencyPercentage Float           @default(100.0) // (completed / target) * 100
+  notes                String?
+  createdAt            DateTime        @default(now())
+}
+
+model ReworkEntry {
+  id                String          @id @default(uuid())
+  companyId         String
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  qcRecordId        String?
+  bundleId          String?
+  defectType        String          // STITCHING_DEFECT, MEASUREMENT_MISMATCH, FABRIC_FLAW, STAIN, BUTTON_LOOSE
+  defectNotes       String?
+  defectPhotoUrl    String?
+  severity          String          @default("MEDIUM") // MINOR, MEDIUM, CRITICAL
+  quantity          Int             @default(1)
+  assignedWorkerId  String?
+  assignedWorker    Worker?         @relation(fields: [assignedWorkerId], references: [id], onDelete: SetNull)
+  status            String          @default("PENDING_REWORK") // PENDING_REWORK, REWORK_IN_PROGRESS, RE_INSPECTED_PASS, SCRAPPED
+  reworkCost        Float           @default(0)
+  createdAt         DateTime        @default(now())
+  completedAt       DateTime?
+}
+
+model FinishedGoods {
+  id                String           @id @default(uuid())
+  companyId         String
+  company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId          String?
+  branch            Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  productionOrderId String?
+  productionOrder   ProductionOrder? @relation(fields: [productionOrderId], references: [id], onDelete: SetNull)
+  sku               String
+  styleNumber       String
+  productName       String
+  size              String
+  color             String
+  batchNumber       String
+  quantity          Int
+  warehouse         String           @default("Main FG Godown")
+  location          String?
+  unitCost          Float            @default(0)
+  sellingPrice      Float            @default(0)
+  packedDate        DateTime         @default(now())
+  status            String           @default("IN_STOCK") // IN_STOCK, ALLOCATED, DISPATCHED, RETURNED
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model ManufacturingCosting {
+  id                     String          @id @default(uuid())
+  companyId              String
+  company                Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productionOrderId      String          @unique
+  productionOrder        ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  productStyleId         String?
+  productStyle           ProductStyle?   @relation(fields: [productStyleId], references: [id], onDelete: SetNull)
+  fabricCost             Float           @default(0)
+  trimsCost              Float           @default(0)
+  labourCost             Float           @default(0)
+  embroideryCost         Float           @default(0)
+  printingCost           Float           @default(0)
+  packingCost            Float           @default(0)
+  wastageCost            Float           @default(0)
+  overheadCost           Float           @default(0)
+  otherCost              Float           @default(0)
+  totalActualCost        Float           @default(0)
+  estimatedBOMCost       Float           @default(0)
+  varianceCost           Float           @default(0) // totalActual - estimatedBOM
+  unitActualCost         Float           @default(0)
+  unitSellingPrice       Float           @default(0)
+  unitProfit             Float           @default(0)
+  profitMarginPercentage Float           @default(0)
+  costingItemsJson       String?         // JSON array breakdown
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
 }
 
